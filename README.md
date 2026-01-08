@@ -38,6 +38,18 @@ to `True`, as django-radius has functioned in earlier versions.
 RADIUS_REMOTE_ROLES = True
 ```
 
+The default behavior is for django-radius to bring groups in from RADIUS 
+when a user is authenticated. You may overwrite this behavior by setting the 
+following in settings.py of your Django project:
+
+```python
+RADIUS_IMPORT_GROUPS = False
+```
+
+This will still import the is_staff, is_superuser flags from RADIUS according 
+to the role assignment but ignore any group assignments, putting django
+in charge of group to user assignment(s).
+
 When a user is successfully authenticated via the RADIUS backend, a `User`
 object is created in Django's built-in auth application with the same username.
 This user's password is set to the password which they logged into the RADIUS
@@ -229,6 +241,7 @@ For each role (is_staff and is_superuser) and group mapping one RAIDUS Attribute
 The syntax allows the following mappings:
 * `role=staff` (sets is_staff=True in the User object)
 * `role=superuser` (sets is_superuser=True for the User object)
+* `role=su-staff` (sets both is_superuser and is_staff te True for the User object)
 * `group=Group1` (add the User object to `Group1`)
 
 To avoid namespace clashes in the RADIUS Attribute 25 values that may be

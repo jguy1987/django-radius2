@@ -146,21 +146,21 @@ class RADIUSBackend(object):
         role_class_prefix = app_class_prefix + "role="
 
         for cl in reply['Class']:
-            try:
-                cl = cl.decode("utf-8")
-                if cl.lower().find(group_class_prefix) == 0:
-                    groups.append(cl[len(group_class_prefix):])
-                elif cl.lower().find(role_class_prefix) == 0:
-                    role = cl[len(role_class_prefix):]
-                    if role == "staff":
-                        is_staff = True
-                    elif role == "superuser":
-                        is_superuser = True
-                    else:
-                        logging.warning("RADIUS Attribute Class contains unknown role '%s'. Only roles 'staff' and 'superuser' are allowed" % cl)
-            except UnicodeDecodeError:
-                logging.warning("RADIUS Attribute Class contains non-unicode value '%s'. Only unicode values are "
-                                "supported" % cl)
+            cl = cl.decode("utf-8")
+            if cl.lower().find(group_class_prefix) == 0:
+                groups.append(cl[len(group_class_prefix):])
+            elif cl.lower().find(role_class_prefix) == 0:
+                role = cl[len(role_class_prefix):]
+                if role == "staff":
+                    is_staff = True
+                elif role == "superuser":
+                    is_superuser = True
+                elif role == "su-staff":
+                    # su-staff role assignment sets both is_staff and is_superuser to True for the user in one step.
+                    is_staff = True
+                    is_superuser = True
+                else:
+                    logging.warning("RADIUS Attribute Class contains unknown role '%s'. Only roles 'staff', 'superuser' and 'su-staff' are allowed" % cl)
         return groups, is_staff, is_superuser
 
     def _radius_auth(self, server, username, password):
@@ -195,7 +195,17 @@ class RADIUSBackend(object):
             user.set_password(password)
 
         user.save()
-        user.groups.set(groups)
+
+        # If RADIUS_IMPORT_GROUPS is not set, configure it to default value False.
+        # False means that a user import from RADIUS to Django will NOT overwrite the group
+        # assignment of the user.
+        # The default is TRUE to mimic django-radius's current behavior pre Pull Request.
+        if not hasattr(settings, "RADIUS_IMPORT_GROUPS"):
+            settings.RADIUS_IMPORT_GROUPS = True
+
+        if settings.RADIUS_IMPORT_GROUPS:
+            user.groups.set(groups)
+
         return user
 
     def get_user_groups(self, group_names):
